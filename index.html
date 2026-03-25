@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cuffi Ei</title>
+<link rel="icon" href="egg.png">
+<style>
+body {
+font-family: Arial, sans-serif;
+background: #f6f1e8;
+text-align: center;
+padding: 30px 20px;
+margin: 0;
+}
+
+.app {
+max-width: 400px;
+margin: 0 auto;
+background: white;
+padding: 25px;
+border-radius: 24px;
+box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+}
+
+h1 {
+margin-bottom: 10px;
+font-size: 42px;
+}
+
+p {
+color: #666;
+margin-bottom: 20px;
+}
+
+#logo {
+width: 80px;
+height: 80px;
+object-fit: contain;
+margin-bottom: 8px;
+}
+
+#time {
+font-size: 56px;
+font-weight: bold;
+margin: 25px 0;
+background: #7ac943;
+color: white;
+padding: 18px;
+border-radius: 18px;
+}
+
+.buttons {
+display: grid;
+gap: 12px;
+margin-top: 20px;
+}
+
+button {
+padding: 14px;
+font-size: 20px;
+border: none;
+border-radius: 14px;
+cursor: pointer;
+box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+}
+
+.soft {
+background: #f4d35e;
+}
+
+.medium {
+background: #ee964b;
+color: white;
+}
+
+.hard {
+background: #f95738;
+color: white;
+}
+
+.start {
+background: #4caf50;
+color: white;
+}
+
+.stop {
+background: #ef476f;
+color: white;
+}
+
+.reset {
+background: #3a86ff;
+color: white;
+}
+
+#status {
+margin-top: 18px;
+font-size: 20px;
+font-weight: bold;
+color: #c62828;
+min-height: 24px;
+}
+</style>
+</head>
+<body>
+<div class="app">
+<img id="logo" src="egg.png" alt="Ei Logo">
+<h1>Cuffi Ei</h1>
+<p>Wähle, wie hart dein Ei sein soll</p>
+
+<div id="time">00:00</div>
+
+<div class="buttons">
+<button class="soft" onclick="setTimer(4)">Weiches Ei – 4 Min</button>
+<button class="medium" onclick="setTimer(6)">Mittel – 6 Min</button>
+<button class="hard" onclick="setTimer(9)">Hart gekocht – 9 Min</button>
+
+<button class="start" onclick="startTimer()">Start</button>
+<button class="stop" onclick="stopTimer()">Stopp</button>
+<button class="reset" onclick="resetTimer()">Reset</button>
+</div>
+
+<div id="status">Wähle zuerst eine Zeit.</div>
+</div>
+
+<script>
+let totalSeconds = 0;
+let savedSeconds = 0;
+let timer = null;
+let audioCtx = null;
+let alarmInterval = null;
+
+function initAudio() {
+try {
+if (!audioCtx) {
+audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+if (audioCtx.state === "suspended") {
+audioCtx.resume();
+}
+} catch (e) {
+console.log("Audio error:", e);
+}
+}
+
+function updateDisplay() {
+const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+const seconds = String(totalSeconds % 60).padStart(2, "0");
+document.getElementById("time").textContent = `${minutes}:${seconds}`;
+}
+
+function setTimer(minutes) {
+stopTimer();
+totalSeconds = minutes * 60;
+savedSeconds = totalSeconds;
+updateDisplay();
+document.getElementById("status").textContent = `Ausgewählt: ${minutes} Minuten`;
+}
+
+function startTimer() {
+initAudio();
+
+if (totalSeconds <= 0) {
+document.getElementById("status").textContent = "Bitte zuerst eine Zeit auswählen.";
+return;
+}
+
+if (timer) return;
+
+document.getElementById("status").textContent = "Timer läuft...";
+
+timer = setInterval(() => {
+totalSeconds--;
+updateDisplay();
+
+if (totalSeconds <= 0) {
+totalSeconds = 0;
+updateDisplay();
+clearInterval(timer);
+timer = null;
+document.getElementById("status").textContent = "Dein Ei ist fertig! Drücke Stopp.";
+playAlarm();
+}
+}, 1000);
+}
+
+function stopTimer() {
+clearInterval(timer);
+clearInterval(alarmInterval);
+timer = null;
+alarmInterval = null;
+document.getElementById("status").textContent = "Timer gestoppt.";
+}
+
+function resetTimer() {
+stopTimer();
+totalSeconds = savedSeconds;
+updateDisplay();
+document.getElementById("status").textContent = "Timer zurückgesetzt.";
+}
+
+function beepOnce(delay = 0, freq = 1000, duration = 0.25) {
+if (!audioCtx) return;
+
+const start = audioCtx.currentTime + delay;
+const osc = audioCtx.createOscillator();
+const gain = audioCtx.createGain();
+
+osc.connect(gain);
+gain.connect(audioCtx.destination);
+
+osc.type = "sine";
+osc.frequency.setValueAtTime(freq, start);
+
+gain.gain.setValueAtTime(0, start);
+gain.gain.linearRampToValueAtTime(0.35, start + 0.01);
+gain.gain.linearRampToValueAtTime(0, start + duration);
+
+osc.start(start);
+osc.stop(start + duration + 0.02);
+}
+
+function playAlarm() {
+initAudio();
+
+clearInterval(alarmInterval);
+
+alarmInterval = setInterval(() => {
+beepOnce(0, 1000, 0.25);
+}, 500);
+}
+
+updateDisplay();
+document.addEventListener("click", initAudio);
+</script>
+</body>
+</html>
